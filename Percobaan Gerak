@@ -15,3 +15,49 @@ public class WalkingCharacterDemo extends SimpleApplication
   public void onAnimCycleDone(AnimControl control, AnimChannel channel, String animName) { }
 
   public void onAnimChange(AnimControl control, AnimChannel channel, String animName) { }
+ 
+
+public void onAnimChange(AnimControl control, AnimChannel channel, String animName) { }
+
+//buat control kiri kanan atas bawah
+private boolean left, right , up , down ;
+...
+
+public void simpleInitApp() {
+  this.left = false;
+  this.right = false;
+  this.up = false;
+  this.down = false;
+  // sambung ke wasd
+  inputManager.addMapping("CharLeft", new KeyTrigger(KeyInput.KEY_A));
+  inputManager.addMapping("CharRight", new KeyTrigger(KeyInput.KEY_D));
+  inputManager.addMapping("CharForward", new KeyTrigger(KeyInput.KEY_W));
+  inputManager.addMapping("CharBackward", new KeyTrigger(KeyInput.KEY_S));
+  inputManager.addMapping("CharJump", new KeyTrigger(KeyInput.KEY_RETURN));
+  inputManager.addMapping("CharAttack", new KeyTrigger(KeyInput.KEY_SPACE));
+  inputManager.addListener(this, "CharLeft", "CharRight");
+  inputManager.addListener(this, "CharForward", "CharBackward");
+  inputManager.addListener(this, "CharJump", "CharAttack");
+  
+}
+
+//untuk on action  button
+
+public void onAction(String binding, boolean value, float tpf) {
+  if (binding.equals("CharLeft")) {
+      if (value) left = true;
+      else left = false;
+  } else if (binding.equals("CharRight")) {
+      if (value) right = true;
+      else right = false;
+  } else if (binding.equals("CharForward")) {
+      if (value) up = true;
+      else up = false;
+  } else if (binding.equals("CharBackward")) {
+      if (value) down = true;
+      else down = false;
+  } else if (binding.equals("CharJump"))
+      character.jump();
+  if (binding.equals("CharAttack"))
+    attack();
+}
