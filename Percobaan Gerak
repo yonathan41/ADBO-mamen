@@ -1,0 +1,17 @@
+public class WalkingCharacterDemo extends SimpleApplication
+        implements ActionListener, AnimEventListener {
+
+  public static void main(String[] args) {
+    WalkingCharacterDemo app = new WalkingCharacterDemo();
+    app.start();
+  }
+
+  public void simpleInitApp() { }
+
+  public void simpleUpdate(float tpf) { }
+
+  public void onAction(String name, boolean isPressed, float tpf) { }
+
+  public void onAnimCycleDone(AnimControl control, AnimChannel channel, String animName) { }
+
+  public void onAnimChange(AnimControl control, AnimChannel channel, String animName) { }
