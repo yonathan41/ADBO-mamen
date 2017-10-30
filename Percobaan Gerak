@@ -61,3 +61,217 @@ public void onAction(String binding, boolean value, float tpf) {
   if (binding.equals("CharAttack"))
     attack();
 }
+
+public class WalkingCharacterDemo extends SimpleApplication
+        implements ActionListener, AnimEventListener {
+ 
+  public static void main(String[] args) {
+    WalkingCharacterDemo app = new WalkingCharacterDemo();
+    app.start();
+  }
+ 
+  public void simpleInitApp() { }
+ 
+  public void simpleUpdate(float tpf) { }
+ 
+  public void onAction(String name, boolean isPressed, float tpf) { }
+ 
+  public void onAnimCycleDone(AnimControl control, AnimChannel channel, String animName) { }
+ 
+  public void onAnimChange(AnimControl control, AnimChannel channel, String animName) { }
+Overview
+
+To create a walking character:
+
+(Unless you already have it) Activate physics in the scene by adding a BulletAppState.
+Init the scene by loading the game level model (terrain or floor/buildings), and giving the scene a MeshCollisionShape.
+Create the animated character:
+Load an animated character model.
+Add a CharacterControl to the model.
+Set up animation channel and controllers.
+Add a ChaseCam or CameraNode.
+Handle navigational inputs.
+Activate Physics
+
+private BulletAppState bulletAppState;
+...
+public void simpleInitApp() {
+    bulletAppState = new BulletAppState();
+    //bulletAppState.setThreadingType(BulletAppState.ThreadingType.PARALLEL);
+    stateManager.attach(bulletAppState);
+    ...
+}
+Initialize the Scene
+
+In the simpleInitApp() method you initialize the scene and give it a MeshCollisionShape. The sample in the jme3 sources uses a custom helper class that simply creates a flat floor and drops some cubes and spheres on it:
+
+public void simpleInitApp() {
+  ...
+  PhysicsTestHelper.createPhysicsTestWorld(rootNode,
+      assetManager, bulletAppState.getPhysicsSpace());
+  ...
+In a real game, you would load a scene model here instead of a test world. You can load a model from a local or remote zip file, and scale and position it:
+
+private Node gameLevel;
+..
+public void simpleInitApp() {
+  ...
+  //assetManager.registerLocator("quake3level.zip", ZipLocator.class);
+  assetManager.registerLocator(
+  "http://jmonkeyengine.googlecode.com/files/quake3level.zip",
+    HttpZipLocator.class);
+  MaterialList matList = (MaterialList) assetManager.loadAsset("Scene.material");
+  OgreMeshKey key = new OgreMeshKey("main.meshxml", matList);
+  gameLevel = (Node) assetManager.loadAsset(key);
+  gameLevel.setLocalTranslation(-20, -16, 20);
+  gameLevel.setLocalScale(0.10f);
+  gameLevel.addControl(new RigidBodyControl(0));
+  rootNode.attachChild(gameLevel);
+  bulletAppState.getPhysicsSpace().addAll(gameLevel);
+  ...
+Also, add a light source to be able to see the scene.
+
+  AmbientLight light = new AmbientLight();
+  light.setColor(ColorRGBA.White.mult(2));
+  rootNode.addLight(light);
+Create the Animated Character
+
+You create an animated model, such as Oto.mesh.xml.
+
+
+private CharacterControl character;
+private Node model;
+...
+public void simpleInitApp() {
+  ...
+  CapsuleCollisionShape capsule = new CapsuleCollisionShape(3f, 4f);
+  character = new CharacterControl(capsule, 0.05f);
+  character.setJumpSpeed(20f);
+  model = (Node) assetManager.loadModel("Models/Oto/Oto.mesh.xml");
+  model.addControl(character);
+  bulletAppState.getPhysicsSpace().add(character);
+  rootNode.attachChild(model);
+  ...
+
+private AnimChannel animationChannel;
+private AnimChannel attackChannel;
+private AnimControl animationControl;
+...
+public void simpleInitApp() {
+  ...
+  animationControl = model.getControl(AnimControl.class);
+  animationControl.addListener(this);
+  animationChannel = animationControl.createChannel();
+  attackChannel = animationControl.createChannel();
+  attackChannel.addBone(animationControl.getSkeleton().getBone("uparm.right"));
+  attackChannel.addBone(animationControl.getSkeleton().getBone("arm.right"));
+  attackChannel.addBone(animationControl.getSkeleton().getBone("hand.right"));
+  ...
+The attackChannel only controls one arm, while the walking channels controls the whole character.
+
+Add ChaseCam / CameraNode
+
+private ChaseCamera chaseCam;
+ 
+...
+ 
+public void simpleInitApp() {
+  ...
+  flyCam.setEnabled(false);
+  chaseCam = new ChaseCamera(cam, model, inputManager);
+  ...
+Handle Navigation
+
+Configure custom key bindings for WASD keys that you will use to make the character walk. Then calculate the vector where the user wants the character to move. Note the use of the special setWalkDirection() method below.
+
+// track directional input, so we can walk left-forward etc
+private boolean left = false, right = false, up = false, down = false;
+...
+ 
+public void simpleInitApp() {
+  ...
+  // configure mappings, e.g. the WASD keys
+  inputManager.addMapping("CharLeft", new KeyTrigger(KeyInput.KEY_A));
+  inputManager.addMapping("CharRight", new KeyTrigger(KeyInput.KEY_D));
+  inputManager.addMapping("CharForward", new KeyTrigger(KeyInput.KEY_W));
+  inputManager.addMapping("CharBackward", new KeyTrigger(KeyInput.KEY_S));
+  inputManager.addMapping("CharJump", new KeyTrigger(KeyInput.KEY_RETURN));
+  inputManager.addMapping("CharAttack", new KeyTrigger(KeyInput.KEY_SPACE));
+  inputManager.addListener(this, "CharLeft", "CharRight");
+  inputManager.addListener(this, "CharForward", "CharBackward");
+  inputManager.addListener(this, "CharJump", "CharAttack");
+  ...
+}
+Respond to the key bindings by setting variables that track in which direction you will go. This allows us to steer the character forwards and to the left at the same time. Note that no actual walking happens here yet! We just track the input.
+
+@Override
+public void onAction(String binding, boolean value, float tpf) {
+  if (binding.equals("CharLeft")) {
+      if (value) left = true;
+      else left = false;
+  } else if (binding.equals("CharRight")) {
+      if (value) right = true;
+      else right = false;
+  } else if (binding.equals("CharForward")) {
+      if (value) up = true;
+      else up = false;
+  } else if (binding.equals("CharBackward")) {
+      if (value) down = true;
+      else down = false;
+  } else if (binding.equals("CharJump"))
+      character.jump();
+  if (binding.equals("CharAttack"))
+    attack();
+}
+The player can attack and walk at the same time. Attack() is a custom method that triggers an attack animation in the arms. Here you should also add custom code to play an effect and sound, and to determine whether the hit was successful.
+
+private void attack() {
+    attackChannel.setAnim("Dodge", 0.1f);
+    attackChannel.setLoopMode(LoopMode.DontLoop);
+}
+Finally, the update loop looks at the directional variables and moves the character accordingly. Since this is a special kinematic CharacterControl, we use the setWalkDirection() method.
+
+The variable airTime tracks how long the character is off the ground (e.g. when jumping or falling) and adjusts the walk and stand animations acccordingly.
+
+private Vector3f walkDirection = new Vector3f(0,0,0); // stop
+ 
+private float airTime = 0;
+ 
+public void simpleUpdate(float tpf) {
+  Vector3f camDir = cam.getDirection().clone();
+  Vector3f camLeft = cam.getLeft().clone();
+  camDir.y = 0;
+  camLeft.y = 0;
+  camDir.normalizeLocal();
+  camLeft.normalizeLocal();
+  walkDirection.set(0, 0, 0);
+ 
+  if (left)  walkDirection.addLocal(camLeft);
+  if (right) walkDirection.addLocal(camLeft.negate());
+  if (up) walkDirection.addLocal(camDir);
+  if (down) walkDirection.addLocal(camDir.negate());
+ 
+  if (!character.onGround()) { // use !character.isOnGround() if the character is a BetterCharacterControl type.
+      airTime += tpf;
+  } else {
+      airTime = 0;
+  }
+ 
+  if (walkDirection.lengthSquared() == 0) { //Use lengthSquared() (No need for an extra sqrt())
+      if (!"stand".equals(animationChannel.getAnimationName())) {
+        animationChannel.setAnim("stand", 1f);
+      }
+  } else {
+      character.setViewDirection(walkDirection);
+      if (airTime > .3f) {
+        if (!"stand".equals(animationChannel.getAnimationName())) {
+          animationChannel.setAnim("stand");
+        }
+      } else if (!"Walk".equals(animationChannel.getAnimationName())) {
+        animationChannel.setAnim("Walk", 0.7f);
+      }
+    }
+ 
+  walkDirection.multLocal(25f).multLocal(tpf);// The use of the first multLocal here is to control the rate of movement multiplier for character walk speed. The second one is to make sure the character walks the same speed no matter what the frame rate is.
+  character.setWalkDirection(walkDirection); // THIS IS WHERE THE WALKING HAPPENS
+}
